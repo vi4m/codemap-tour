@@ -1,0 +1,77 @@
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+body {
+  background: #151b26;
+  color: #dbe3ef;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.tour-empty {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  box-sizing: border-box;
+  color: #dbe3ef;
+  text-align: center;
+}
+.tour-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 13px;
+  background: #f2a44020;
+  color: #ffb74f;
+  font-size: 25px;
+}
+.tour-empty strong {
+  font-size: 18px;
+}
+.tour-prepare {
+  padding: 11px 16px;
+  margin-top: 8px;
+  border-radius: 8px;
+  background: #f3a53f;
+  color: #111720;
+  font-weight: 600;
+  font-size: 13px;
+}
+.tour-empty p {
+  max-width: 300px;
+  margin: 0;
+  color: #9ba9bc;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.tour-plugin-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 80px;
+  z-index: 200;
+  padding: 10px 14px;
+  border: 1px solid #536078;
+  border-radius: 8px;
+  background: #202b3b;
+  color: #fff;
+  font-size: 12px;
+}

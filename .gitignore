@@ -1,0 +1,5 @@
+node_modules/
+test-results/
+playwright-report/
+plugins/codemap-tour/test-mcp.json
+.DS_Store

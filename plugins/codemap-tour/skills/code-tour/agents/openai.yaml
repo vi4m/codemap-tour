@@ -1,0 +1,10 @@
+interface:
+  display_name: 'Code Tour'
+  short_description: 'Guided code tours beside your Codex conversation'
+  default_prompt: 'Use $codemap-tour:code-tour to guide me through the code changes in this conversation and open the reader beside the chat.'
+
+dependencies:
+  tools:
+    - type: 'mcp'
+      value: 'codemap-tour'
+      description: 'Local CodeMap Tour server bundled with the plugin'

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codemap-tour",
+  "version": "0.1.9",
+  "description": "A focused code reader and player for guided tours in Codex.",
+  "author": {
+    "name": "Marcin Kliks"
+  },
+  "repository": "https://github.com/vi4m/codemap-tour",
+  "license": "MIT",
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "CodeMap Tour",
+        "shortDescription": "Read a guided code tour in a Codex tab.",
+        "longDescription": "A focused, source-cited code reader for short guided tours, with highlights, optional diffs, notes and player controls.",
+        "developerName": "Marcin Kliks",
+        "category": "Productivity",
+        "capabilities": ["Interactive", "Read"],
+        "brandColor": "#f3a53f",
+        "logo": "./assets/logo.svg",
+        "defaultPrompt": [
+          "Open a guided code tour beside this conversation.",
+          "Show me the important parts of these changes, one step at a time."
+        ]
+      }
+    }
+  }
+}

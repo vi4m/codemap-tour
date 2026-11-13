@@ -1,0 +1,20 @@
+{
+  "name": "codemap-tour",
+  "interface": {
+    "displayName": "CodeMap Tour"
+  },
+  "plugins": [
+    {
+      "name": "codemap-tour",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codemap-tour"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
