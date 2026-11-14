@@ -7,7 +7,7 @@
       "args": ["${PLUGIN_ROOT}/scripts/launch.cjs"],
       "cwd": "${PLUGIN_ROOT}",
       "env": {
-        "CODEMAP_TOUR_PLUGIN_VERSION": "0.1.9"
+        "CODEMAP_TOUR_PLUGIN_VERSION": "0.2.0"
       }
     }
   }

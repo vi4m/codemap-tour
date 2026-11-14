@@ -240,6 +240,7 @@ test("the bundled MCP server advertises a native thread tab and serves a complet
     "tour_diff",
     "tour_annotate",
     "tour_describe",
+    "tour_introduce",
   ]) {
     const tool = tools.tools.find((item) => item.name === name)!;
     assert.equal(
@@ -250,7 +251,7 @@ test("the bundled MCP server advertises a native thread tab and serves a complet
   }
   assert.deepEqual(panel.inputSchema.properties, {});
   assert.ok(
-    config.mcpServers["codemap-tour"].args[0].endsWith("/0.1.9/server.mjs"),
+    config.mcpServers["codemap-tour"].args[0].endsWith("/0.2.0/server.mjs"),
   );
   const resource = await client.readResource({
     uri: (reader._meta?.ui as { resourceUri: string }).resourceUri,
@@ -363,6 +364,51 @@ test("the bundled MCP server advertises a native thread tab and serves a complet
     "other-thread",
   );
   assert.equal(refusedDescription.isError, true);
+  const ref = tour.scenario.after[0].evidence[0];
+  const introduction = {
+    orientation: {
+      summary: "The value lives in one source file.",
+      directories: [{ path: ".", purpose: "Repository source." }],
+      files: [
+        {
+          source: ref,
+          change: "modified",
+          purpose: "A value.",
+          integration: "Used by callers.",
+        },
+      ],
+    },
+    glossary: {
+      summary: "The shared value.",
+      entries: [
+        {
+          name: "value",
+          kind: "concept",
+          isNew: false,
+          responsibility: "A returned value.",
+          collaboration: "Read by the caller.",
+          source: ref,
+        },
+      ],
+    },
+  };
+  const intro = await call({
+    name: "tour_introduce",
+    arguments: { tourId: tour.review.id, introduction },
+  });
+  assert.equal(intro.isError, undefined);
+  assert.equal(
+    (intro.structuredContent as { tour: TourView }).tour.chapterOrder.length,
+    3,
+  );
+  const foreignIntro = await call(
+    {
+      name: "tour_introduce",
+      arguments: { tourId: tour.review.id, introduction },
+    },
+    "other-thread",
+  );
+  assert.equal(foreignIntro.isError, true);
   const source = await call({
     name: "tour_source",
     arguments: {
@@ -522,5 +568,200 @@ test("one logical chapter captures multiple files and keeps essential ranges ind
     noPath.scenario.after[0].happyPath,
     [],
     "the chapter evidence is never an automatic Happy Path",
+  );
+});
+
+test("introductions capture their own definitions and extend an existing tour without replacing its code", async (t) => {
+  const f = await fixture();
+  t.after(f.dispose);
+  await f.write(
+    "api/request.ts",
+    "export function request() {\n return 2;\n}\n",
+  );
+  await f.write(
+    "model/Result.ts",
+    "export interface Result {\n count: number;\n}\n",
+  );
+  await f.commit("base");
+  const cite = { path: "api/request.ts", startLine: 1, endLine: 3 };
+  const definition = { path: "model/Result.ts", startLine: 1, endLine: 3 };
+  const introduction = {
+    orientation: {
+      summary: "New model alongside the API.",
+      directories: [
+        { path: "api", purpose: "Existing request boundary." },
+        { path: "model", purpose: "Shared data shapes." },
+      ],
+      files: [
+        {
+          source: definition,
+          change: "added",
+          purpose: "A shared result.",
+          integration: "Consumed by request handling.",
+        },
+        {
+          source: cite,
+          change: "modified",
+          purpose: "API entry.",
+          integration: "Returns the shared result.",
+        },
+      ],
+    },
+    glossary: {
+      summary: "Meet the result contract.",
+      entries: [
+        {
+          name: "Result",
+          kind: "interface",
+          responsibility: "Describes output.",
+          collaboration: "Created by the API and read by its callers.",
+          source: definition,
+        },
+      ],
+    },
+  };
+  const input = {
+    repository: f.repo,
+    title: "A request",
+    introduction,
+    stops: [
+      {
+        label: "Return a result",
+        detail: "Normal path.",
+        after: cite,
+        comments: [{ side: "after", startLine: 2, text: "Return value." }],
+      },
+    ],
+  };
+  const session = new TourSession(`${f.root}/intro.json`, "thread-a");
+  const published = await session.publish(input);
+  assert.deepEqual(published.chapterOrder, [
+    "intro-orientation",
+    "intro-glossary",
+    "stop-1",
+  ]);
+  assert.equal(published.selection.stepId, "intro-orientation-after");
+  const first = published.scenario.after[0];
+  const second = published.scenario.after[1];
+  assert.equal(first.introduction?.kind, "orientation");
+  assert.equal(second.introduction?.kind, "glossary");
+  const captured = second.evidence[0];
+  await f.write("model/Result.ts", "Changed after publication\n");
+  assert.match(
+    session.source(published.review.id, captured, 0, 10).content,
+    /interface Result/,
+  );
+  assert.equal(
+    new TourSession(`${f.root}/intro.json`).current()?.scenario.after[1]
+      .introduction?.kind,
+    "glossary",
+  );
+  const legacy = new TourSession();
+  const old = await legacy.publish({
+    repository: f.repo,
+    title: "Older tour",
+    stops: input.stops,
+  });
+  const source = old.scenario.after[0].evidence[0];
+  const attached = {
+    orientation: {
+      summary: "Existing API changes.",
+      directories: [{ path: "api", purpose: "Request entry." }],
+      files: [
+        {
+          source,
+          change: "modified",
+          purpose: "API",
+          integration: "Part of the request flow.",
+        },
+      ],
+    },
+    glossary: {
+      summary: "Request concepts.",
+      entries: [
+        {
+          name: "request",
+          kind: "function",
+          isNew: false,
+          responsibility: "Returns data.",
+          collaboration: "Used by callers.",
+          source,
+        },
+      ],
+    },
+  };
+  const attachedTour = legacy.introduce(old.review.id, attached);
+  assert.equal(attachedTour.chapterOrder.length, 3);
+  assert.equal(attachedTour.selection.stepId, old.selection.stepId);
+  assert.deepEqual(attachedTour.scenario.after[2], old.scenario.after[0]);
+  assert.deepEqual(attachedTour.lineComments, old.lineComments);
+  legacy.annotate(old.review.id, "intro-orientation-after", [
+    { startLine: 2, text: "Keep this introduction comment." },
+  ]);
+  assert.equal(
+    legacy.introduce(old.review.id, attached, true).selection.stepId,
+    "intro-orientation-after",
+  );
+  assert.equal(
+    legacy.current()?.chapterOrder.length,
+    3,
+    "replacing the introduction does not duplicate it",
+  );
+  assert.ok(
+    legacy
+      .current()
+      ?.lineComments.some(
+        (note) => note.text === "Keep this introduction comment.",
+      ),
+  );
+  const stable = legacy.current();
+  assert.throws(
+    () =>
+      legacy.introduce(old.review.id, {
+        ...attached,
+        glossary: {
+          ...attached.glossary,
+          entries: [
+            {
+              ...attached.glossary.entries[0],
+              source: { ...source, blob: "forged" },
+            },
+          ],
+        },
+      }),
+    /not part of the active tour/,
+  );
+  assert.deepEqual(
+    legacy.current(),
+    stable,
+    "a rejected introduction is atomic",
+  );
+  assert.throws(
+    () =>
+      legacy.introduce(old.review.id, {
+        ...attached,
+        glossary: {
+          ...attached.glossary,
+          entries: [
+            {
+              ...attached.glossary.entries[0],
+              source: { ...source, endLine: 99999 },
+            },
+          ],
+        },
+      }),
+    /outside the captured file/,
+  );
+  assert.deepEqual(legacy.current(), stable);
+  assert.throws(
+    () =>
+      legacy.introduce(old.review.id, {
+        ...attached,
+        orientation: {
+          ...attached.orientation,
+          directories: [{ path: "unrelated", purpose: "Wrong" }],
+        },
+      }),
+    /cited file/,
   );
 });

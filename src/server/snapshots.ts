@@ -25,6 +25,12 @@ import {
   selectionSchema,
   sourceRefSchema,
   taskContextSchema,
+  orientationSchema,
+  orientationFileSchema,
+  glossarySchema,
+  glossaryEntrySchema,
+  introductionSchema,
+  type TourIntroduction,
 } from "../shared/model";
 
 import {
@@ -123,11 +129,81 @@ const stopSchema = z
     message: "Each stop needs at least one source citation.",
   });
 
+const introductionInputSchema = z
+  .object({
+    orientation: orientationSchema.extend({
+      files: z
+        .array(orientationFileSchema.extend({ source: citationSchema }))
+        .min(1)
+        .max(20),
+    }),
+    glossary: glossarySchema.extend({
+      entries: z
+        .array(glossaryEntrySchema.extend({ source: citationSchema }))
+        .min(1)
+        .max(20),
+    }),
+  })
+  .strict();
+const INTRO_KEYS = ["intro-orientation", "intro-glossary"];
+function introductionSteps(introduction: TourIntroduction): Scenario["after"] {
+  return [
+    { ...introduction.orientation, kind: "orientation" as const },
+    { ...introduction.glossary, kind: "glossary" as const },
+  ].map((content, i) => ({
+    id: `${INTRO_KEYS[i]}-after`,
+    from: "code",
+    to: "reader",
+    correspondence: INTRO_KEYS[i],
+    label: content.title,
+    detail: content.summary,
+    kind: "state" as const,
+    evidence: [
+      ...new Map(
+        (content.kind === "orientation" ? content.files : content.entries).map(
+          (item) => [JSON.stringify(item.source), item.source],
+        ),
+      ).values(),
+    ],
+    introduction: content,
+    provenance: "inferred" as const,
+  }));
+}
+function validateIntroductionDirectories(introduction: TourIntroduction) {
+  const paths = new Set<string>();
+  for (const directory of introduction.orientation.directories) {
+    if (directory.path !== ".") validatePath(directory.path);
+    if (paths.has(directory.path))
+      throw new Error("Duplicate introduction directory.");
+    paths.add(directory.path);
+    if (
+      !introduction.orientation.files.some(
+        (file) =>
+          directory.path === "." ||
+          file.source.path.startsWith(directory.path + "/"),
+      )
+    )
+      throw new Error("Each directory needs a cited file in the map.");
+  }
+  if (
+    introduction.orientation.files.some(
+      (file) =>
+        !introduction.orientation.directories.some(
+          (directory) =>
+            directory.path === "." ||
+            file.source.path.startsWith(directory.path + "/"),
+        ),
+    )
+  )
+    throw new Error("Each map file needs a matching directory.");
+}
+
 export const tourInputSchema = z
   .object({
     repository: z.string().min(1).max(4096),
     title: z.string().min(1).max(200),
     taskContext: taskContextSchema.optional(),
+    introduction: introductionInputSchema.optional(),
     stops: z.array(stopSchema).min(1).max(30),
   })
   .strict();
@@ -198,7 +274,7 @@ const storedSchema = z.object({
         .max(480),
     }),
     scenario: scenarioSchema,
-    chapterOrder: z.array(z.string()).max(30),
+    chapterOrder: z.array(z.string()).max(32),
     selection: selectionSchema,
     version: z.number().int().positive(),
     lineComments: z.array(lineCommentSchema).max(600).default([]),
@@ -594,6 +670,21 @@ export class TourSession {
           files.push(item);
       }
     }
+    if (input.introduction) {
+      const mappedFiles = [];
+      for (const file of input.introduction.orientation.files)
+        mappedFiles.push({ ...file, source: await read(file.source) });
+      const entries = [];
+      for (const entry of input.introduction.glossary.entries)
+        entries.push({ ...entry, source: await read(entry.source) });
+      const introduction = introductionSchema.parse({
+        orientation: { ...input.introduction.orientation, files: mappedFiles },
+        glossary: { ...input.introduction.glossary, entries },
+      });
+      validateIntroductionDirectories(introduction);
+      after.unshift(...introductionSteps(introduction));
+      chapterOrder.unshift(...INTRO_KEYS);
+    }
     const first =
       after.find((step) => step.correspondence === chapterOrder[0]) ??
       before.find((step) => step.correspondence === chapterOrder[0])!;
@@ -657,6 +748,65 @@ export class TourSession {
       view.version = ++this.counter;
       this.persist();
     }
+    return this.current()!;
+  }
+
+  introduce(tourId: string, value: unknown, selectFirst = false) {
+    const view = this.require(tourId);
+    const introduction = introductionSchema.parse(value);
+    validateIntroductionDirectories(introduction);
+    for (const item of [
+      ...introduction.orientation.files,
+      ...introduction.glossary.entries,
+    ]) {
+      const source = this.get(item.source);
+      if (
+        item.source.startLine < 1 ||
+        item.source.endLine < item.source.startLine ||
+        item.source.endLine > source.lines.length
+      )
+        throw new Error("Introduction lines are outside the captured file.");
+    }
+    const steps = introductionSteps(introduction);
+    const oldIntroIds = new Set(
+      [...view.scenario.before, ...view.scenario.after]
+        .filter((step) => step.introduction)
+        .map((step) => step.id),
+    );
+    view.scenario.before = view.scenario.before.filter(
+      (step) => !step.introduction,
+    );
+    view.scenario.after = [
+      ...steps,
+      ...view.scenario.after.filter((step) => !step.introduction),
+    ];
+    view.chapterOrder = [
+      ...INTRO_KEYS,
+      ...view.chapterOrder.filter((key) => !INTRO_KEYS.includes(key)),
+    ];
+    const introducedSources = new Map(
+      steps.map((step) => [step.id, new Set(step.evidence.map(identity))]),
+    );
+    view.lineComments = view.lineComments.filter(
+      (note) =>
+        !oldIntroIds.has(note.stepId) ||
+        introducedSources.get(note.stepId)?.has(identity(note.ref)),
+    );
+    if (
+      selectFirst ||
+      ![...view.scenario.before, ...view.scenario.after].some(
+        (step) => step.id === view.selection.stepId,
+      )
+    )
+      view.selection = {
+        view: "flow",
+        storyId: "tour",
+        scenarioId: "tour",
+        stepId: steps[0].id,
+        side: "after",
+      };
+    view.version = ++this.counter;
+    this.persist();
     return this.current()!;
   }
 

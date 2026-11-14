@@ -25,6 +25,7 @@ Install the updated plugin through Codex and restart the desktop app to replace 
 
 ## What the reader does
 
+- Starts with **a change map** (directories, new/changed files, and their role in the existing system) and **a concept glossary** (new classes/structs, responsibilities, collaborations, and captured definitions). Both are chapters in the player; opening a source reference previews code with a return button.
 - Organizes a tour into logical chapters that can connect several files. Switch files or source fragments without leaving the chapter.
 - Captures exact Git revisions or working-tree snapshots. Before/after and diffs use those captured files.
 - Shows directory breadcrumbs and overall task context when you hover or click the title.
@@ -53,6 +54,8 @@ The bundled [Code Tour skill](plugins/codemap-tour/skills/code-tour/SKILL.md) ex
 | `tour_describe`            | Update explanations, task context, or Happy Path ranges without recapturing code.                                                |
 
 A chapter can cite `after: [{path, revision, startLine, endLine}, ...]` and the corresponding `before` array. Its essential fragments use `happyPath: [{side, path, startLine, endLine}, ...]`. Include a file `path` for comments in multi-file chapters.
+
+New tours supply an `introduction` alongside their code stops. `orientation` contains a summary, directory purposes, and files with explicit change status, role and integration notes. `glossary` contains a summary and named concepts with kind, new/existing status, responsibility, collaboration and a source citation. The server captures these references along with the code route. For an existing tour, `tour_introduce` takes exact references to already captured source and preserves the current chapter unless `selectFirst: true` is requested.
 
 ## Develop
 

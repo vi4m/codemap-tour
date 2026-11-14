@@ -30,6 +30,7 @@ try {
     "tour_source",
     "tour_annotate",
     "tour_describe",
+    "tour_introduce",
   ])
     assert.ok(tools.tools.some((tool) => tool.name === name));
   const uri = tools.tools.find((tool) => tool.name === "tour_open")._meta.ui
@@ -37,6 +38,8 @@ try {
   const html = (await client.readResource({ uri })).contents[0].text;
   assert.ok(html.includes("Happy Path"));
   assert.ok(html.includes("Move guide note"));
+  assert.ok(html.includes("Concept glossary"));
+  assert.ok(html.includes("Change map"));
   console.log(
     `Distribution smoke passed: ${manifest.name} ${manifest.version}, ${tools.tools.length} tools, self-contained reader.`,
   );

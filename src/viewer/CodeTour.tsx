@@ -24,6 +24,7 @@ import type {
 } from "../shared/model";
 import type { LineComment, TourLineSelection } from "../shared/code-comments";
 import { api } from "./api";
+import { TourIntroduction, type IntroductionPreview } from "./TourIntroduction";
 import { GuideNote } from "./GuideNote";
 import { CodeReader } from "./CodeReader";
 import { highlight } from "./SourceCode";
@@ -114,6 +115,7 @@ export function CodeTour({
     ref: SourceRef;
     stepId: string;
     side: Side;
+    overview?: boolean;
   }) => void;
 }) {
   const chapters = useMemo(() => {
@@ -133,6 +135,9 @@ export function CodeTour({
     selection.side ?? (chapter?.after ? "after" : "before"),
   );
   const [referenceIndex, setReferenceIndex] = useState(0);
+  const [introductionPreview, setIntroductionPreview] = useState<
+    (IntroductionPreview & { stepId: string }) | null
+  >(null);
   const [pageStart, setPageStart] = useState<number>();
   const [source, setSource] = useState<SourcePage & { key: string }>();
   const [patch, setPatch] = useState<Patch & { key: string }>();
@@ -166,7 +171,10 @@ export function CodeTour({
       : mode;
   const step = chapter?.[selectedSide] ?? chapter?.after ?? chapter?.before;
   const refs = step?.evidence ?? [];
-  const ref = refs[Math.min(referenceIndex, refs.length - 1)];
+  const preview =
+    introductionPreview?.stepId === step?.id ? introductionPreview : null;
+  const showIntroduction = !!step?.introduction && !preview;
+  const ref = preview?.ref ?? refs[Math.min(referenceIndex, refs.length - 1)];
   const refKey = ref ? JSON.stringify(ref) : "";
   const essentialRanges = useMemo(
     () =>
@@ -181,8 +189,13 @@ export function CodeTour({
   const hasHappyPath = essentialRanges.length > 0;
   useEffect(() => {
     if (ref && step)
-      onSourceFocus?.({ ref, stepId: step.id, side: selectedSide });
-  }, [refKey, step?.id, selectedSide, onSourceFocus]);
+      onSourceFocus?.({
+        ref,
+        stepId: step.id,
+        side: selectedSide,
+        overview: showIntroduction,
+      });
+  }, [refKey, step?.id, selectedSide, showIntroduction, onSourceFocus]);
 
   const comments = useMemo(
     () =>
@@ -205,7 +218,7 @@ export function CodeTour({
   useEffect(() => {
     setSelectedLines(null);
     setLineQuestion(questionTemplate);
-  }, [refKey, step?.id, mode, pageStart]);
+  }, [refKey, step?.id, mode, pageStart, showIntroduction]);
   useEffect(() => {
     const timer = window.setTimeout(() => onLineFocus?.(selectedLines), 150);
     return () => window.clearTimeout(timer);
@@ -270,6 +283,12 @@ export function CodeTour({
   }, [refKey]);
 
   useEffect(() => {
+    if (showIntroduction) {
+      setSource(undefined);
+      setError("");
+      setLoading(false);
+      return;
+    }
     if (!ref || mode === "diff") return;
     const controller = new AbortController();
     setSource(undefined);
@@ -310,10 +329,18 @@ export function CodeTour({
     return () => controller.abort();
     // refKey contains every field of the immutable reference.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [review.id, refKey, pageStart, mode === "diff", request]);
+  }, [
+    review.id,
+    refKey,
+    pageStart,
+    mode === "diff",
+    showIntroduction,
+    request,
+  ]);
 
   useEffect(() => {
-    if (mode !== "diff" || (!fileBefore && !fileAfter)) return;
+    if (showIntroduction || mode !== "diff" || (!fileBefore && !fileAfter))
+      return;
     const controller = new AbortController();
     setPatch(undefined);
     setError("");
@@ -338,7 +365,7 @@ export function CodeTour({
     return () => controller.abort();
     // patchKey identifies the captured files on both sides.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode === "diff", patchKey, request]);
+  }, [mode === "diff", patchKey, showIntroduction, request]);
 
   useEffect(() => {
     if (
@@ -388,7 +415,8 @@ export function CodeTour({
         return;
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        if (preview) setIntroductionPreview(null);
+        else onClose();
       }
       if (event.key === "ArrowLeft") {
         event.preventDefault();
@@ -401,7 +429,7 @@ export function CodeTour({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [index, onClose, selectChapter]);
+  }, [index, onClose, selectChapter, preview]);
 
   function chooseSide(side: Side) {
     const target = chapter?.[side];
@@ -524,7 +552,7 @@ export function CodeTour({
               setFocusOptions(false);
               setPlaying(false);
             }}
-            disabled={mode === "diff" || !hasHappyPath}
+            disabled={showIntroduction || mode === "diff" || !hasHappyPath}
           >
             Happy Path
           </button>
@@ -581,7 +609,7 @@ export function CodeTour({
             setPlaying(false);
             setMode(mode === "diff" ? selectedSide : "diff");
           }}
-          disabled={!canDiff}
+          disabled={!!step.introduction || !canDiff}
           aria-label="Diff"
           title="Show code diff"
           aria-pressed={mode === "diff"}
@@ -594,6 +622,7 @@ export function CodeTour({
           onClick={() => setNoteOpen(!noteOpen)}
           aria-label={noteOpen ? "Hide explanation" : "Show explanation"}
           aria-pressed={noteOpen}
+          disabled={showIntroduction}
         >
           <MessageSquareText size={15} />
           <span>Note</span>
@@ -609,66 +638,85 @@ export function CodeTour({
         )}
       </header>
       <div className="tour-filebar">
-        <div className="tour-file-name">
-          <FileCode2 size={15} />
-          <nav
-            className="tour-breadcrumbs"
-            aria-label="Source directory"
-            title={ref?.path}
-          >
-            {ref
-              ? ref.path.split("/").map((part, i, parts) => (
-                  <span
-                    key={i}
-                    title={parts.slice(0, i + 1).join("/")}
-                    className={i === parts.length - 1 ? "current" : ""}
-                  >
-                    {i > 0 && <b>/</b>}
-                    {part}
-                  </span>
-                ))
-              : "Source unavailable"}
-          </nav>
-          <span>
-            {ref &&
-              `L${ref.startLine}${ref.endLine !== ref.startLine ? `–${ref.endLine}` : ""}`}
-          </span>
-        </div>
-        <span
-          className="tour-comment-count"
-          aria-label="Line comments"
-          title="Comments for this step and source version"
-        >
-          {comments.length
-            ? `${comments.length} ${comments.length === 1 ? "comment · hover dot" : "comments · hover dots"}`
-            : "No line comments"}
-        </span>
-        <div className="tour-revision" title={ref?.revision}>
-          {ref?.revision.startsWith("worktree:")
-            ? "snapshot"
-            : ref?.revision.slice(0, 8)}{" "}
-          <span>·</span> read only
-        </div>
-        <div className="tour-side-switch" aria-label="Source version">
+        {step.introduction && (
           <button
-            onClick={() => chooseSide("before")}
-            disabled={!chapter.before}
-            className={mode === "before" ? "active" : ""}
-            aria-pressed={mode === "before"}
+            className="tour-back-introduction"
+            disabled={showIntroduction}
+            onClick={() => {
+              setPlaying(false);
+              setIntroductionPreview(null);
+              setMode(selectedSide);
+            }}
           >
-            Before
+            {preview && <ChevronLeft size={13} />} {step.introduction.title}
           </button>
-          <button
-            onClick={() => chooseSide("after")}
-            disabled={!chapter.after}
-            className={mode === "after" ? "active" : ""}
-            aria-pressed={mode === "after"}
-          >
-            After
-          </button>
-        </div>
+        )}
+        {!showIntroduction && (
+          <>
+            <div className="tour-file-name">
+              <FileCode2 size={15} />
+              <nav
+                className="tour-breadcrumbs"
+                aria-label="Source directory"
+                title={ref?.path}
+              >
+                {ref
+                  ? ref.path.split("/").map((part, i, parts) => (
+                      <span
+                        key={i}
+                        title={parts.slice(0, i + 1).join("/")}
+                        className={i === parts.length - 1 ? "current" : ""}
+                      >
+                        {i > 0 && <b>/</b>}
+                        {part}
+                      </span>
+                    ))
+                  : "Source unavailable"}
+              </nav>
+              <span>
+                {ref &&
+                  `L${ref.startLine}${ref.endLine !== ref.startLine ? `–${ref.endLine}` : ""}`}
+              </span>
+            </div>
+            <span
+              className="tour-comment-count"
+              aria-label="Line comments"
+              title="Comments for this step and source version"
+            >
+              {comments.length
+                ? `${comments.length} ${comments.length === 1 ? "comment · hover dot" : "comments · hover dots"}`
+                : "No line comments"}
+            </span>
+            <div className="tour-revision" title={ref?.revision}>
+              {ref?.revision.startsWith("worktree:")
+                ? "snapshot"
+                : ref?.revision.slice(0, 8)}{" "}
+              <span>·</span> read only
+            </div>
+            {!step.introduction && (
+              <div className="tour-side-switch" aria-label="Source version">
+                <button
+                  onClick={() => chooseSide("before")}
+                  disabled={!chapter.before}
+                  className={mode === "before" ? "active" : ""}
+                  aria-pressed={mode === "before"}
+                >
+                  Before
+                </button>
+                <button
+                  onClick={() => chooseSide("after")}
+                  disabled={!chapter.after}
+                  className={mode === "after" ? "active" : ""}
+                  aria-pressed={mode === "after"}
+                >
+                  After
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
-      {refs.length > 1 && (
+      {!step.introduction && refs.length > 1 && (
         <nav className="tour-chapter-files" aria-label="Files in this chapter">
           <span>{refs.length} fragments · one chapter</span>
           {refs.map((item, i) => (
@@ -690,17 +738,31 @@ export function CodeTour({
         </nav>
       )}
       <main className="tour-stage">
-        {loading && (
+        {step.introduction && (
+          <TourIntroduction
+            key={step.id}
+            content={step.introduction}
+            onInteract={() => setPlaying(false)}
+            hidden={!showIntroduction}
+            onPreview={(source) => {
+              setPlaying(false);
+              setIntroductionPreview({ ...source, stepId: step.id });
+              setMode(selectedSide);
+            }}
+          />
+        )}
+        {!showIntroduction && loading && (
           <div className="tour-stage-message" role="status">
             Loading captured code…
           </div>
         )}
-        {error && (
+        {!showIntroduction && error && (
           <div className="tour-stage-message tour-error" role="alert">
             {error}
           </div>
         )}
-        {!loading &&
+        {!showIntroduction &&
+          !loading &&
           !error &&
           mode !== "diff" &&
           source?.key === refKey &&
@@ -750,52 +812,56 @@ export function CodeTour({
               />
             </div>
           )}
-        {!loading && !error && mode === "diff" && patch?.key === patchKey && (
-          <div
-            ref={diffRef}
-            className="tour-diff"
-            tabIndex={0}
-            aria-label="Code diff"
-          >
-            {!patch.hunks.length && <p>No textual changes for this file.</p>}
-            {patch.hunks.map((hunk, h) => {
-              let before = hunk.oldStart,
-                after = hunk.newStart;
-              return (
-                <section
-                  key={h}
-                  data-diff-start={
-                    selectedSide === "before" ? hunk.oldStart : hunk.newStart
-                  }
-                >
-                  <div className="tour-diff-hunk">
-                    @@ {hunk.oldStart} → {hunk.newStart} @@
-                  </div>
-                  {hunk.lines.map((line, i) => {
-                    const marker = line[0];
-                    const oldNumber =
-                      marker === "+" || marker === "\\" ? "" : before++;
-                    const newNumber =
-                      marker === "-" || marker === "\\" ? "" : after++;
-                    return (
-                      <div
-                        className={`tour-diff-line ${marker === "+" ? "added" : marker === "-" ? "removed" : ""}`}
-                        key={i}
-                      >
-                        <span>{oldNumber}</span>
-                        <span>{newNumber}</span>
-                        <b>{marker}</b>
-                        <code>{highlight(line.slice(1))}</code>
-                      </div>
-                    );
-                  })}
-                </section>
-              );
-            })}
-            {patch.truncated && <p>Diff limited to 800 lines.</p>}
-          </div>
-        )}
-        {!loading && !error && !ref && (
+        {!showIntroduction &&
+          !loading &&
+          !error &&
+          mode === "diff" &&
+          patch?.key === patchKey && (
+            <div
+              ref={diffRef}
+              className="tour-diff"
+              tabIndex={0}
+              aria-label="Code diff"
+            >
+              {!patch.hunks.length && <p>No textual changes for this file.</p>}
+              {patch.hunks.map((hunk, h) => {
+                let before = hunk.oldStart,
+                  after = hunk.newStart;
+                return (
+                  <section
+                    key={h}
+                    data-diff-start={
+                      selectedSide === "before" ? hunk.oldStart : hunk.newStart
+                    }
+                  >
+                    <div className="tour-diff-hunk">
+                      @@ {hunk.oldStart} → {hunk.newStart} @@
+                    </div>
+                    {hunk.lines.map((line, i) => {
+                      const marker = line[0];
+                      const oldNumber =
+                        marker === "+" || marker === "\\" ? "" : before++;
+                      const newNumber =
+                        marker === "-" || marker === "\\" ? "" : after++;
+                      return (
+                        <div
+                          className={`tour-diff-line ${marker === "+" ? "added" : marker === "-" ? "removed" : ""}`}
+                          key={i}
+                        >
+                          <span>{oldNumber}</span>
+                          <span>{newNumber}</span>
+                          <b>{marker}</b>
+                          <code>{highlight(line.slice(1))}</code>
+                        </div>
+                      );
+                    })}
+                  </section>
+                );
+              })}
+              {patch.truncated && <p>Diff limited to 800 lines.</p>}
+            </div>
+          )}
+        {!showIntroduction && !loading && !error && !ref && (
           <div className="tour-stage-message">
             No source is available for this step.
           </div>
@@ -849,11 +915,20 @@ export function CodeTour({
             </button>
           </aside>
         )}
-        {noteOpen && (
+        {!showIntroduction && noteOpen && (
           <GuideNote
-            step={step}
-            refs={refs}
-            referenceIndex={referenceIndex}
+            step={
+              preview
+                ? {
+                    ...step,
+                    label: preview.label,
+                    detail: preview.detail,
+                    explanation: preview.explanation,
+                  }
+                : step
+            }
+            refs={preview ? [preview.ref] : refs}
+            referenceIndex={preview ? 0 : referenceIndex}
             onReference={(i) => {
               setPlaying(false);
               setReferenceIndex(i);
@@ -862,12 +937,12 @@ export function CodeTour({
             onInteract={() => setPlaying(false)}
           />
         )}
-        {!noteOpen && (
+        {!showIntroduction && !noteOpen && (
           <button className="tour-show-note" onClick={() => setNoteOpen(true)}>
             <MessageSquareText size={14} /> Show note
           </button>
         )}
-        {mode !== "diff" && source?.key === refKey && (
+        {!showIntroduction && mode !== "diff" && source?.key === refKey && (
           <div className="tour-page-actions">
             <button
               disabled={source.startLine <= 1}

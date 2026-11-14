@@ -9,7 +9,7 @@ import { fixture } from "./helpers";
 test("conversation-panel app bridge renders the reader and keeps the selected code in sync", async ({
   page,
 }) => {
-  test.setTimeout(60000);
+  test.setTimeout(90000);
   execFileSync(process.execPath, ["scripts/build.mjs"]);
   const f = await fixture();
   const client = new Client({ name: "tour-browser-test", version: "1" });
@@ -26,6 +26,10 @@ test("conversation-panel app bridge renders the reader and keeps the selected co
     await f.write(
       "src/value.ts",
       "export function answer() {\n  return 2;\n}\n",
+    );
+    await f.write(
+      "src/result.ts",
+      "export interface ExportResult {\n  total: number;\n}\n",
     );
     const config = JSON.parse(
       await readFile("plugins/codemap-tour/test-mcp.json", "utf8"),
@@ -53,6 +57,52 @@ test("conversation-panel app bridge renders the reader and keeps the selected co
           changes: ["One becomes two."],
           additions: ["A line comment."],
           approach: ["Compare captured versions."],
+        },
+        introduction: {
+          orientation: {
+            summary: "Where the new result type fits in the application.",
+            directories: [
+              {
+                path: "src",
+                purpose:
+                  "The worker calculates a value; the shared result type describes what the API returns.",
+              },
+            ],
+            files: [
+              {
+                source: { path: "src/result.ts", startLine: 1, endLine: 3 },
+                change: "added",
+                purpose: "Shared export result.",
+                integration: "The API and worker agree on the result shape.",
+              },
+              {
+                source: citation,
+                change: "modified",
+                purpose: "Return the updated value.",
+                integration: "Its output feeds the existing worker flow.",
+              },
+            ],
+          },
+          glossary: {
+            summary: "Know the result type before tracing behavior.",
+            entries: [
+              {
+                name: "ExportResult",
+                kind: "interface",
+                responsibility: "Describes the completed result.",
+                collaboration: "The worker fills total; API consumers read it.",
+                source: { path: "src/result.ts", startLine: 1, endLine: 3 },
+              },
+              {
+                name: "answer",
+                kind: "function",
+                isNew: false,
+                responsibility: "Returns a number.",
+                collaboration: "It is called by the existing workflow.",
+                source: citation,
+              },
+            ],
+          },
         },
         stops: [
           {
@@ -177,6 +227,93 @@ test("conversation-panel app bridge renders the reader and keeps the selected co
     await expect(
       reader.getByRole("region", { name: "Code tour" }),
     ).toBeVisible();
+    await expect(
+      reader.getByLabel("Change map", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      reader.getByLabel("Change map", { exact: true }),
+    ).toContainText("src/");
+    await expect(
+      reader.getByLabel("Change map", { exact: true }),
+    ).toContainText("Shared export result.");
+    await expect(reader.locator(".cm-editor")).toHaveCount(0);
+    await reader.getByRole("button", { name: "Play auto advance" }).click();
+    await expect(
+      reader.getByRole("button", { name: "Pause auto advance" }),
+    ).toBeVisible();
+    await reader.getByLabel("Change map", { exact: true }).hover();
+    await page.mouse.wheel(0, 80);
+    await expect(
+      reader.getByRole("button", { name: "Play auto advance" }),
+    ).toBeVisible();
+    await expect(
+      reader.getByRole("button", { name: "Diff", exact: true }),
+    ).toBeDisabled();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as any).tourContext?.content?.[0]?.text),
+      )
+      .toContain("Code Tour introduction: Mapa zmian");
+    await page
+      .locator("iframe")
+      .screenshot({ path: test.info().outputPath("change-map.png") });
+    await reader
+      .getByLabel("Change map", { exact: true })
+      .getByRole("button", { name: /result.ts/ })
+      .click();
+    await expect(reader.getByLabel("Change map", { exact: true })).toBeHidden();
+    await expect(reader.locator(".cm-content")).toContainText(
+      "interface ExportResult",
+    );
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as any).tourContext?.content?.[0]?.text),
+      )
+      .toContain("src/result.ts:1-3");
+    await reader
+      .getByRole("button", { name: "Mapa zmian", exact: true })
+      .click();
+    await expect(
+      reader.getByLabel("Change map", { exact: true }),
+    ).toBeVisible();
+    await reader.getByRole("button", { name: "Next step" }).click();
+    await expect(
+      reader.getByLabel("Concept glossary", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      reader.getByLabel("Concept glossary", { exact: true }),
+    ).toContainText("ExportResult");
+    await expect(
+      reader.getByLabel("Concept glossary", { exact: true }),
+    ).toContainText("Describes the completed result.");
+    await expect(reader.locator(".cm-editor")).toHaveCount(0);
+    await page
+      .locator("iframe")
+      .screenshot({ path: test.info().outputPath("concept-glossary.png") });
+    await reader
+      .getByRole("button", { name: "Open definition", exact: true })
+      .click();
+    await expect(reader.locator(".cm-content")).toContainText(
+      "interface ExportResult",
+    );
+    await expect(reader.getByLabel("Step explanation")).toContainText(
+      "ExportResult",
+    );
+    await reader
+      .getByRole("button", { name: "Słownik pojęć", exact: true })
+      .click();
+    await expect(
+      reader.getByLabel("Concept glossary", { exact: true }),
+    ).toBeVisible();
+    await reader.getByRole("button", { name: "Chapters", exact: true }).click();
+    await expect(reader.getByRole("menuitem").nth(0)).toContainText(
+      "Mapa zmian",
+    );
+    await expect(reader.getByRole("menuitem").nth(1)).toContainText(
+      "Słownik pojęć",
+    );
+    await reader.getByRole("button", { name: "Chapters", exact: true }).click();
+    await reader.getByRole("button", { name: "Next step" }).click();
     await expect(
       reader.locator(".cm-tour-focus").filter({ hasText: "return 2" }),
     ).toHaveCount(1);
@@ -304,11 +441,9 @@ test("conversation-panel app bridge renders the reader and keeps the selected co
     await expect(
       reader.getByLabel("Question about selected lines"),
     ).toHaveValue("Is that really needed?");
-    await page
-      .locator("iframe")
-      .screenshot({
-        path: test.info().outputPath("guide-and-line-discussion.png"),
-      });
+    await page.locator("iframe").screenshot({
+      path: test.info().outputPath("guide-and-line-discussion.png"),
+    });
 
     await reader
       .getByLabel("Question about selected lines")

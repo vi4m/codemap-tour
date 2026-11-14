@@ -905,3 +905,203 @@
   font-size: 9px;
   color: #94a4b9;
 }
+
+.tour-introduction {
+  height: 100%;
+  overflow: auto;
+  background: #151b26;
+  color: #dce4ef;
+}
+.tour-introduction[hidden] {
+  display: none;
+}
+.tour-introduction-inner {
+  max-width: 850px;
+  margin: 0 auto;
+  padding: 36px 32px 50px;
+}
+.tour-introduction-eyebrow {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  color: #edb76b;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+}
+.tour-introduction h1 {
+  font-size: 25px;
+  font-weight: 600;
+  margin: 14px 0 12px;
+  line-height: 1.3;
+}
+.tour-introduction-summary {
+  max-width: 700px;
+  color: #b9c7d9;
+  font-size: 14px;
+  line-height: 1.75;
+  margin: 0 0 18px;
+  white-space: pre-wrap;
+}
+.tour-introduction-count {
+  font-size: 11px;
+  color: #8398b3;
+  margin-bottom: 30px;
+}
+.tour-map-directory {
+  border-left: 1px solid #34435a;
+  padding-left: 19px;
+  margin-bottom: 32px;
+}
+.tour-map-directory h2 {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+  color: #dbe5f2;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tour-map-directory > p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #93a7bf;
+  margin: 10px 0 16px;
+}
+.tour-map-file {
+  margin: 0 0 20px 16px;
+}
+.tour-map-file-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.tour-map-file-heading button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a9c7f1;
+  font-size: 12px;
+  padding: 0;
+  text-align: left;
+  min-width: 0;
+}
+.tour-map-file-heading button code {
+  overflow-wrap: anywhere;
+}
+.tour-change-badge {
+  font-size: 9px;
+  color: #90a7c1;
+  background: #243145;
+  border-radius: 4px;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+.tour-change-badge.added {
+  color: #8ed5b0;
+  background: #1e3931;
+}
+.tour-change-badge.modified {
+  color: #e0b872;
+  background: #3c3325;
+}
+.tour-map-purpose {
+  color: #d1dce9;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 9px 0 5px;
+}
+.tour-map-integration {
+  color: #90a3bb;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.tour-glossary details {
+  border-bottom: 1px solid #2f3d52;
+  padding: 19px 0;
+}
+.tour-glossary summary {
+  cursor: pointer;
+  list-style-position: outside;
+  margin-left: 16px;
+}
+.tour-glossary-name {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.tour-glossary-name code {
+  color: #d5e3f7;
+  font-size: 15px;
+}
+.tour-glossary-name > span {
+  font-size: 10px;
+  color: #8fa8c4;
+}
+.tour-glossary-responsibility {
+  display: block;
+  color: #c1cedf;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.tour-glossary-detail {
+  margin: 12px 0 0 16px;
+}
+.tour-glossary-detail p {
+  color: #93a9c3;
+  font-size: 12px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  margin: 0 0 13px;
+}
+.tour-glossary-detail button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  font-size: 11px;
+  color: #edb76b;
+  padding: 0;
+}
+.tour-glossary-detail small {
+  display: block;
+  font-size: 10px;
+  color: #6e87a5;
+  margin-top: 9px;
+  overflow-wrap: anywhere;
+}
+.tour-introduction-hint {
+  font-size: 11px;
+  color: #7188a3;
+  margin-top: 30px;
+  line-height: 1.65;
+}
+.tour-back-introduction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: #d8b47c;
+  flex-shrink: 0;
+}
+.tour-back-introduction:disabled {
+  opacity: 1;
+  color: #a1b4cd;
+  cursor: default;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .tour-introduction-inner {
+    padding: 26px 20px 40px;
+  }
+  .tour-map-file {
+    margin-left: 0;
+  }
+  .tour-introduction h1 {
+    font-size: 22px;
+  }
+}

@@ -13,13 +13,13 @@ import type {
   OpenAIUiToolMetadata,
 } from "@openai/mcp-extensions";
 import { z } from "zod";
-import { sourceRefSchema } from "../shared/model";
+import { sourceRefSchema, introductionSchema } from "../shared/model";
 import { lineNoteInputSchema } from "../shared/code-comments";
 import { tourInputSchema, tourNotesSchema } from "./snapshots";
 import { ConversationTours } from "./conversations";
 
-const resourceUri = "ui://codemap-tour/reader-v0.1.9.html";
-const server = new McpServer({ name: "codemap-tour", version: "0.1.9" });
+const resourceUri = "ui://codemap-tour/reader-v0.2.0.html";
+const server = new McpServer({ name: "codemap-tour", version: "0.2.0" });
 const tours = new ConversationTours(
   process.env.CODEMAP_TOUR_DATA_DIR || path.join(homedir(), ".codemap-tour"),
 );
@@ -168,6 +168,34 @@ server.registerTool(
         { tour: tours.session(extra).navigate(tourId, stepId, side) },
         "Tour selection updated.",
       );
+    } catch (cause) {
+      return error(cause);
+    }
+  },
+);
+
+server.registerTool(
+  "tour_introduce",
+  {
+    title: "Add the change map and concept glossary",
+    description:
+      "Prepend or replace two introductory chapters on an existing tour, without recapturing source or replacing code chapters. Use exact SourceRefs from tour_state/tour_source; identify new versus changed files after inspecting Git changes. Keeps the current selection unless selectFirst is true.",
+    inputSchema: z
+      .object({
+        tourId: z.string().uuid(),
+        introduction: introductionSchema,
+        selectFirst: z.boolean().default(false),
+      })
+      .strict(),
+    annotations: { ...local, readOnlyHint: false },
+    _meta: { ui: { visibility: ["model", "app"] } },
+  },
+  async ({ tourId, introduction, selectFirst }, extra) => {
+    try {
+      const session = tours.session(extra);
+      const tour = session.introduce(tourId, introduction, selectFirst);
+      tours.remember(session);
+      return result({ tour }, "Change map and glossary ready in the player.");
     } catch (cause) {
       return error(cause);
     }

@@ -120,6 +120,68 @@ export const storySchema = z
   })
   .strict();
 export type ChangeStory = z.infer<typeof storySchema>;
+export const orientationFileSchema = z
+  .object({
+    source: sourceRefSchema,
+    change: z.enum(["added", "modified", "existing", "removed"]),
+    purpose: z.string().trim().min(1).max(700),
+    integration: z.string().trim().min(1).max(1200),
+  })
+  .strict();
+export const orientationSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).default("Mapa zmian"),
+    summary: z.string().trim().min(1).max(2000),
+    directories: z
+      .array(
+        z
+          .object({
+            path: z.string().min(1).max(2000),
+            purpose: z.string().trim().min(1).max(1000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+    files: z.array(orientationFileSchema).min(1).max(20),
+  })
+  .strict();
+export const glossaryEntrySchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    kind: z.enum([
+      "class",
+      "struct",
+      "enum",
+      "interface",
+      "protocol",
+      "type",
+      "function",
+      "service",
+      "concept",
+    ]),
+    isNew: z.boolean().default(true),
+    responsibility: z.string().trim().min(1).max(1000),
+    collaboration: z.string().trim().min(1).max(1500),
+    source: sourceRefSchema,
+  })
+  .strict();
+export const glossarySchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).default("Słownik pojęć"),
+    summary: z.string().trim().min(1).max(2000),
+    entries: z.array(glossaryEntrySchema).min(1).max(20),
+  })
+  .strict();
+export const introductionSchema = z
+  .object({ orientation: orientationSchema, glossary: glossarySchema })
+  .strict();
+export const introductionStepSchema = z.discriminatedUnion("kind", [
+  orientationSchema.extend({ kind: z.literal("orientation") }),
+  glossarySchema.extend({ kind: z.literal("glossary") }),
+]);
+export type TourIntroduction = z.infer<typeof introductionSchema>;
+export type IntroductionStep = z.infer<typeof introductionStepSchema>;
 export const stepSchema = z
   .object({
     id: z.string().min(1).max(150),
@@ -129,6 +191,7 @@ export const stepSchema = z
     detail: text,
     explanation: z.string().max(6000).optional(),
     happyPath: z.array(sourceRefSchema).max(80).optional(),
+    introduction: introductionStepSchema.optional(),
     kind: z.enum([
       "call",
       "return",

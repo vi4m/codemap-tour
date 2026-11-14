@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codemap-tour",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "description": "A focused code reader and player for guided tours in Codex.",
   "author": {
     "name": "Marcin Kliks"
