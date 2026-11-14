@@ -446,6 +446,11 @@ export function CodeTour({
       symbolId: target.symbolId,
     });
   }
+  function toggleChapters() {
+    setPlaying(false);
+    setChaptersOpen((open) => !open);
+    setHelpOpen(false);
+  }
   function togglePlay() {
     if (!playing && index === chapters.length - 1 && chapters.length > 1)
       selectChapter(0, false);
@@ -976,7 +981,12 @@ export function CodeTour({
       </main>
       <footer className="tour-player">
         {chaptersOpen && (
-          <div className="tour-chapters" role="menu" aria-label="Tour chapters">
+          <div
+            id="tour-chapter-menu"
+            className="tour-chapters"
+            role="menu"
+            aria-label="Tour chapters"
+          >
             <div>
               CHAPTERS <span>{chapters.length} stops</span>
             </div>
@@ -1053,19 +1063,29 @@ export function CodeTour({
             {String(index + 1).padStart(2, "0")}{" "}
             <span>/ {String(chapters.length).padStart(2, "0")}</span>
           </span>
-          <span className="tour-current-title">{step.label}</span>
+          <button
+            className="tour-current-title"
+            onClick={toggleChapters}
+            aria-label={`Choose chapter: ${step.label}`}
+            aria-haspopup="menu"
+            aria-expanded={chaptersOpen}
+            aria-controls="tour-chapter-menu"
+            title={step.label}
+          >
+            <span>{step.label}</span>
+            <ChevronDown size={13} />
+          </button>
           <span className="tour-controls-spacer" />
           <span className="tour-auto-label">
             {playing ? "Auto · 12 s per step" : "Manual"}
           </span>
           <button
             className="tour-footer-button"
-            onClick={() => {
-              setChaptersOpen(!chaptersOpen);
-              setHelpOpen(false);
-            }}
+            onClick={toggleChapters}
             aria-expanded={chaptersOpen}
             aria-label="Chapters"
+            aria-haspopup="menu"
+            aria-controls="tour-chapter-menu"
           >
             <List size={15} />
             <span>Chapters</span>

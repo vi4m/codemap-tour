@@ -18,8 +18,8 @@ import { lineNoteInputSchema } from "../shared/code-comments";
 import { tourInputSchema, tourNotesSchema } from "./snapshots";
 import { ConversationTours } from "./conversations";
 
-const resourceUri = "ui://codemap-tour/reader-v0.2.0.html";
-const server = new McpServer({ name: "codemap-tour", version: "0.2.0" });
+const resourceUri = "ui://codemap-tour/reader-v0.2.1.html";
+const server = new McpServer({ name: "codemap-tour", version: "0.2.1" });
 const tours = new ConversationTours(
   process.env.CODEMAP_TOUR_DATA_DIR || path.join(homedir(), ".codemap-tour"),
 );

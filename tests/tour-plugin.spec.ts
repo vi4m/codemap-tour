@@ -305,6 +305,29 @@ test("conversation-panel app bridge renders the reader and keeps the selected co
     await expect(
       reader.getByLabel("Concept glossary", { exact: true }),
     ).toBeVisible();
+    await reader
+      .getByRole("button", {
+        name: "Choose chapter: Słownik pojęć",
+        exact: true,
+      })
+      .click();
+    await reader
+      .getByRole("menuitem")
+      .filter({ hasText: "Mapa zmian" })
+      .click();
+    await expect(
+      reader.getByLabel("Change map", { exact: true }),
+    ).toBeVisible();
+    await reader
+      .getByRole("button", { name: "Choose chapter: Mapa zmian", exact: true })
+      .click();
+    await reader
+      .getByRole("menuitem")
+      .filter({ hasText: "Słownik pojęć" })
+      .click();
+    await expect(
+      reader.getByLabel("Concept glossary", { exact: true }),
+    ).toBeVisible();
     await reader.getByRole("button", { name: "Chapters", exact: true }).click();
     await expect(reader.getByRole("menuitem").nth(0)).toContainText(
       "Mapa zmian",

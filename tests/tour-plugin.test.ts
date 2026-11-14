@@ -251,7 +251,7 @@ test("the bundled MCP server advertises a native thread tab and serves a complet
   }
   assert.deepEqual(panel.inputSchema.properties, {});
   assert.ok(
-    config.mcpServers["codemap-tour"].args[0].endsWith("/0.2.0/server.mjs"),
+    config.mcpServers["codemap-tour"].args[0].endsWith("/0.2.1/server.mjs"),
   );
   const resource = await client.readResource({
     uri: (reader._meta?.ui as { resourceUri: string }).resourceUri,

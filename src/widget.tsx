@@ -12,7 +12,7 @@ import type { TourView } from "./server/snapshots";
 import "./widget.css";
 
 const app = new App(
-  { name: "Code Tour", version: "0.2.0" },
+  { name: "Code Tour", version: "0.2.1" },
   { availableDisplayModes: ["inline", "fullscreen"] },
   { autoResize: false },
 );

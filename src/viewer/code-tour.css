@@ -544,6 +544,10 @@
     padding: 0 10px 7px;
   }
   .tour-current-title {
+    display: inline-flex;
+    max-width: 180px;
+  }
+  .tour-auto-label {
     display: none;
   }
   .tour-footer-button {
@@ -1104,4 +1108,31 @@
   .tour-introduction h1 {
     font-size: 22px;
   }
+}
+
+.tour-current-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 7px;
+  border-radius: 6px;
+  text-align: left;
+}
+.tour-current-title > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tour-current-title > svg {
+  flex-shrink: 0;
+}
+.tour-current-title:hover,
+.tour-current-title[aria-expanded="true"] {
+  background: #293344;
+  color: #f1f5fb;
+}
+.tour-current-title:focus-visible {
+  outline: 2px solid #eab46a;
+  outline-offset: 2px;
 }
